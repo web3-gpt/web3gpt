@@ -1,4 +1,4 @@
-import { Metadata } from 'next'
+import { Metadata, Viewport } from 'next'
 
 import { Toaster } from 'react-hot-toast'
 import { Analytics } from '@vercel/analytics/react'
@@ -6,9 +6,11 @@ import { Analytics } from '@vercel/analytics/react'
 import '@/app/globals.css'
 import { fontMono, fontSans } from '@/lib/fonts'
 import { cn } from '@/lib/utils'
-import { TailwindIndicator } from '@/components/tailwind-indicator'
-import { Providers } from '@/components/providers'
 import { Header } from '@/components/header'
+import { Providers } from '@/components/providers/ui-providers'
+import { Web3Provider } from '@/components/providers/web3-provider'
+
+export const runtime = 'edge'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://w3gpt.ai'),
@@ -16,14 +18,17 @@ export const metadata: Metadata = {
     default: 'Web3 GPT',
     template: `Web3 GPT`
   },
-  description: 'Deploy your smart contracts with ease using AI.',
+  description: 'Write and deploy smart contracts with AI.',
+  icons: {
+    icon: '/favicon.png'
+  }
+}
+
+export const viewport: Viewport = {
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: 'white' },
     { media: '(prefers-color-scheme: dark)', color: 'black' }
-  ],
-  icons: {
-    icon: '/favicon.ico',
-  }
+  ]
 }
 
 interface RootLayoutProps {
@@ -43,14 +48,15 @@ export default function RootLayout({ children }: RootLayoutProps) {
       >
         <Toaster />
         <Providers attribute="class" defaultTheme="system" enableSystem>
-          <div className="flex flex-col min-h-screen">
-            <Header />
-            <main className="flex flex-col flex-1 bg-muted/50">
-              {children}
+          <div className="flex min-h-screen flex-col">
+            <main className="flex flex-1 flex-col bg-muted/50">
+              <Web3Provider>
+                <Header />
+                {children}
+              </Web3Provider>
             </main>
           </div>
           <Analytics />
-          <TailwindIndicator />
         </Providers>
       </body>
     </html>

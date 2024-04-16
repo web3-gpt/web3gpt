@@ -4,7 +4,7 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 
-import { type Chat, ServerActionResult } from '@/lib/types'
+import { ServerActionResult, ChatListItem } from '@/lib/types'
 import { cn, formatDate } from '@/lib/utils'
 import {
   AlertDialog,
@@ -40,9 +40,9 @@ import {
 } from '@/components/ui/tooltip'
 
 interface SidebarActionsProps {
-  chat: Chat
+  chat: ChatListItem
   removeChat: (args: { id: string; path: string }) => ServerActionResult<void>
-  shareChat: (chat: Chat) => ServerActionResult<Chat>
+  shareChat: (chat: ChatListItem) => ServerActionResult<ChatListItem>
 }
 
 export function SidebarActions({
@@ -56,7 +56,7 @@ export function SidebarActions({
   const [isSharePending, startShareTransition] = React.useTransition()
   const router = useRouter()
 
-  const copyShareLink = React.useCallback(async (chat: Chat) => {
+  const copyShareLink = React.useCallback(async (chat: ChatListItem) => {
     if (!chat.sharePath) {
       return toast.error('Could not copy share link to clipboard')
     }
@@ -121,7 +121,7 @@ export function SidebarActions({
           <div className="space-y-1 rounded-md border p-4 text-sm">
             <div className="font-medium">{chat.title}</div>
             <div className="text-muted-foreground">
-              {formatDate(chat.createdAt)} · {chat.messages.length} messages
+              {formatDate(chat.createdAt)}
             </div>
           </div>
           <DialogFooter className="items-center">

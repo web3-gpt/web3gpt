@@ -1,10 +1,10 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { IconCheck, IconChevronUpDown, IconCopy, IconExternalLink } from '@/components/ui/icons'
+import { IconCheck, IconChevronUpDown, IconCopy } from '@/components/ui/icons'
 import { useCopyToClipboard } from '@/lib/hooks/use-copy-to-clipboard'
 import { cn } from '@/lib/utils'
-import { Message } from "ai";
+import { Message } from 'ai'
 
 interface ChatMessageActionsProps extends React.ComponentProps<'div'> {
   message: Message
@@ -27,15 +27,12 @@ export function ChatMessageActions({
       {...props}
     >
       {message.function_call && (
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onExpandClick}
-      >
-        <IconChevronUpDown />
-        <span className="sr-only">Expand</span>
-      </Button>
+        <Button variant="ghost" size="icon" onClick={onExpandClick}>
+          <IconChevronUpDown />
+          <span className="sr-only">Expand</span>
+        </Button>
       )}
+
       <Button
         variant="ghost"
         size="icon"

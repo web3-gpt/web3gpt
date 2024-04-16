@@ -1,32 +1,43 @@
-import { Chain, Hex } from "viem";
+import { Chain, Hex } from 'viem'
 
-export interface DeployContractConfig {
-    chainName: string;
-    contractName: string;
-    sourceCode: string;
-    constructorArgs: Array<string | string[]>;
+export type GlobalConfig = {
+  viemChain: Chain
+  compilerVersion: string
+  useWallet: boolean
 }
 
-export interface DeployContractResponse {
-    explorerUrl: string;
-    ipfsUrl: string;
+export type DeployContractParams = {
+  chainId: string
+  contractName: string
+  sourceCode: string
+  constructorArgs: Array<string | string[]>
+}
+
+export type DeployContractResult = {
+  sourceCode: string
+  explorerUrl: string
+  ipfsUrl: string
+  verifyContractConfig: VerifyContractParams
+  abi: any
+  standardJsonInput: string
 }
 
 export type VerifyContractParams = {
-    deployHash: Hex,
-    standardJsonInput: string,
-    encodedConstructorArgs: string,
-    fileName: string,
-    contractName: string,
-    viemChain: Chain
+  deployHash: Hex
+  standardJsonInput: string
+  encodedConstructorArgs: string
+  fileName: string
+  contractName: string
+  viemChain: Chain
 }
 
-export type VerifyContractRequestParams = {
-    address: Hex,
-    standardJsonInput: string,
-    compilerVersion: string,
-    encodedConstructorArgs: string,
-    fileName: string,
-    contractName: string,
-    viemChain: Chain
+export type LastDeploymentData = {
+  address?: Hex
+  transactionHash: Hex
+  explorerUrl: string
+  ipfsUrl?: string
+  abi: string
+  verificationStatus: string
+  standardJsonInput: string
+  sourceCode: string
 }

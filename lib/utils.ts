@@ -1,3 +1,4 @@
+import { Message } from 'ai'
 import { clsx, type ClassValue } from 'clsx'
 import { customAlphabet } from 'nanoid'
 import { twMerge } from 'tailwind-merge'
@@ -34,10 +35,21 @@ export async function fetcher<JSON = any>(
 }
 
 export function formatDate(input: string | number | Date): string {
-  const date = new Date(input)
+  const date = new Date(Number(input))
   return date.toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
     year: 'numeric'
   })
+}
+
+export function isValidEmail(email: string): boolean {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return regex.test(email)
+}
+
+export function filterMessages(messages: Message[]): Message[] {
+  return messages.filter(
+    message => message.role !== 'system' && message.role !== 'function'
+  )
 }

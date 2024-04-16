@@ -1,38 +1,46 @@
-import NextAuth, { type DefaultSession } from 'next-auth'
+import NextAuth, { DefaultSession } from 'next-auth'
 import GitHub from 'next-auth/providers/github'
 import { storeUser } from '@/app/actions'
 
+// override type definitions for session
 declare module 'next-auth' {
   interface Session {
     user: {
-      /** The user's id. */
-      id: string
+      id?: string | null | undefined
     } & DefaultSession['user']
   }
 }
 
 export const {
   handlers: { GET, POST },
-  auth,
-  CSRF_experimental
+  auth
 } = NextAuth({
   providers: [GitHub],
   callbacks: {
     async jwt({ token, profile }) {
-      if (profile) {
-        token.id = profile.id
-        token.image = profile.picture
+      if (profile?.id) {
+        token.id = String(profile.id)
         const user = {
-          ...profile, // First spread the rest of the profile properties
-          id: String(profile.id),  // Convert to string
-        };
-        await storeUser(user);
+          ...token,
+          ...profile,
+          id: String(profile.id)
+        }
+        await storeUser(user)
       }
-      return token;
+      return token
     },
-    authorized({ auth }) {
-      return !!auth?.user
+
+    async session({ session, token }) {
+      if (token?.id) {
+        session.user.id = String(token.id)
+      }
+      return session
     }
+
+    // uncomment to require authentication
+    // authorized({ auth }) {
+    //   return !!auth?.user
+    // }
   },
   pages: {
     signIn: '/sign-in'

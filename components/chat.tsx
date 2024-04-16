@@ -1,106 +1,123 @@
 'use client'
 
-import { ChatRequest, FunctionCallHandler } from "ai";
-import { useChat, type Message } from "ai/react";
+import { usePathname, useRouter } from 'next/navigation'
+import { PrefetchKind } from 'next/dist/client/components/router-reducer/router-reducer-types'
+import { ChatRequest, FunctionCallHandler } from 'ai'
+import { useChat, type Message } from 'ai/react'
 import toast from 'react-hot-toast'
 
 import { cn } from '@/lib/utils'
 import { ChatList } from '@/components/chat-list'
 import { ChatPanel } from '@/components/chat-panel'
-import { EmptyScreen } from '@/components/empty-screen'
 import { ChatScrollAnchor } from '@/components/chat-scroll-anchor'
 import { nanoid } from '@/lib/utils'
-import { functionSchemas } from "@/lib/functions/schemas";
-import { useEffect, useState } from "react";
-import { createPublicClient, http } from "viem";
-import { VerifyContractParams } from "@/lib/functions/types";
+import { functionSchemas } from '@/lib/functions/schemas'
+import { Landing } from '@/components/landing'
+import { useGlobalStore } from '@/app/state/global-store'
+import { useW3GPTDeploy } from '@/lib/hooks/use-w3gpt-deploy'
+import { useNetwork } from 'wagmi'
+import { useEffect } from 'react'
 
 export interface ChatProps extends React.ComponentProps<'div'> {
   initialMessages?: Message[]
   id?: string
+  showLanding?: boolean
+  avatarUrl?: string | null | undefined
 }
 
-
-export function Chat({ id, initialMessages, className }: ChatProps) {
-  const [verificationParams, setVerificationParams] = useState<VerifyContractParams>()
-  const [polling, setPolling] = useState(false)
+export function Chat({
+  id,
+  initialMessages,
+  className,
+  showLanding = false,
+  avatarUrl
+}: ChatProps) {
+  const router = useRouter()
+  const path = usePathname()
+  const isChatPage = path.includes('chat')
+  const {
+    setIsGenerating,
+    setIsDeploying,
+    setDeployContractConfig,
+    verifyContractConfig,
+    lastDeploymentData,
+    setLastDeploymentData
+  } = useGlobalStore()
+  const { chain } = useNetwork()
+  const fallbackChainId = chain?.unsupported === false ? chain.id : 5003
+  const activeChainId = chain?.unsupported
+    ? fallbackChainId
+    : chain?.id ?? fallbackChainId
+  const { deploy } = useW3GPTDeploy({ chainId: activeChainId })
 
   useEffect(() => {
-    const verifyFunction = async (verificationParams: VerifyContractParams) => {
-      if (verificationParams) {
-        const publicClient = createPublicClient({
-          chain: verificationParams?.viemChain,
-          transport: http(verificationParams?.viemChain?.rpcUrls?.default?.http[0])
+    let isMounted = true
+
+    async function verifyContract() {
+      if (
+        !verifyContractConfig?.deployHash ||
+        lastDeploymentData?.verificationStatus === 'success'
+      ) {
+        return
+      }
+
+      try {
+        const response = await fetch('/api/verify-contract', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(verifyContractConfig)
         })
-        try {
-          console.log("waiting for 4 confirmations")
-          const transactionReceipt = await publicClient.waitForTransactionReceipt(
-            { hash: verificationParams?.deployHash, confirmations: 4 }
-          )
-          console.log("got 4 confirmations, verifying contract")
-          if (transactionReceipt) {
-            const verifyResponse = await fetch(
-              '/api/verify-contract',
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(verificationParams)
-              })
-            if (verifyResponse.ok) {
-              setPolling(false)
-            }
-          }
-        } catch (e) {
-          console.log('Verification failed, may need more confirmations.', e)
+
+        const data = await response.json()
+
+        if (typeof data === 'string' && data.startsWith('0x') && isMounted) {
+          toast.success('Contract verified successfully!')
+          lastDeploymentData &&
+            setLastDeploymentData({
+              ...lastDeploymentData,
+              verificationStatus: 'success'
+            })
+        } else {
+          setTimeout(verifyContract, 15000) // Retry after 15 seconds
         }
+      } catch (error) {
+        console.error('Verification failed', error)
+        setTimeout(verifyContract, 15000) // Retry after 15 seconds
       }
     }
 
-    if (polling && verificationParams) {
-      const interval = setInterval(() => {
-        verifyFunction(verificationParams)
-      }, 10000)
-      return () => clearInterval(interval)
+    verifyContract()
+
+    return () => {
+      isMounted = false
     }
-  }, [polling, verificationParams])
-
-
+  }, [lastDeploymentData, verifyContractConfig, setLastDeploymentData])
 
   const functionCallHandler: FunctionCallHandler = async (
     chatMessages,
     functionCall
   ) => {
     if (functionCall.name === 'deploy_contract') {
-      // You now have access to the parsed arguments here (assuming the JSON was valid)
-      // If JSON is invalid, return an appropriate message to the model so that it may retry?
+      setIsDeploying(true)
+      const { chainId, contractName, sourceCode, constructorArgs } = JSON.parse(
+        functionCall.arguments || '{}'
+      )
 
-      const response = await fetch(
-        '/api/deploy-contract',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: functionCall.arguments
-        })
+      setDeployContractConfig({
+        chainId: chainId ?? activeChainId,
+        contractName,
+        sourceCode,
+        constructorArgs
+      })
 
-      let content: string;
-      let role: 'system' | 'function';
-
-      if (response.ok) {
-        const { explorerUrl, ipfsUrl, verificationParams } = await response.json()
-        setVerificationParams(verificationParams)
-        setPolling(true)
-        content = JSON.stringify({ explorerUrl, ipfsUrl }) + '\n\n' + 'Your contract will be automativally verified after 4 block confirmations. Keep this tab open.'
-        role = 'function'
-
-      } else {
-        const { error } = await response?.json() ?? {}
-        content = JSON.stringify({ error }) + '\n\n' + 'Try to fix the error and show the user the updated code.'
-        role = 'system'
-      }
+      const verifiedContractAddress = await deploy({
+        chainId: chainId ?? activeChainId,
+        contractName,
+        sourceCode,
+        constructorArgs
+      })
 
       const functionResponse: ChatRequest = {
         messages: [
@@ -108,15 +125,39 @@ export function Chat({ id, initialMessages, className }: ChatProps) {
           {
             id: nanoid(),
             name: 'deploy_contract',
-            role: role,
-            content: content,
+            role: 'function',
+            content: JSON.stringify({ verifiedContractAddress })
           }
         ],
         functions: functionSchemas
       }
-
       return functionResponse
+    } else if (functionCall.name === 'text_to_image') {
+      const response = await fetch('/api/text-to-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: functionCall.arguments })
+      })
+      if (!response.ok) {
+        throw new Error(response.statusText)
+      }
+      const { imageUrl, metadataUrl } = await response.json()
 
+      const functionResponse: ChatRequest = {
+        messages: [
+          ...chatMessages,
+          {
+            id: nanoid(),
+            name: 'text-to-image',
+            role: 'function',
+            content: JSON.stringify({ imageUrl, metadataUrl })
+          }
+        ],
+        functions: functionSchemas
+      }
+      return functionResponse
     }
   }
 
@@ -129,27 +170,36 @@ export function Chat({ id, initialMessages, className }: ChatProps) {
         id
       },
       onResponse(response) {
+        setIsGenerating(true)
+        if (!isChatPage) {
+          router.prefetch(`/chat/${id}`, {
+            kind: PrefetchKind.FULL
+          })
+        }
         if (response.status === 401) {
           toast.error(response.statusText)
         }
+      },
+      onFinish() {
+        setIsGenerating(false)
+        if (!isChatPage) {
+          history.pushState({}, '', `/chat/${id}`)
+          history.go(1)
+        }
       }
     })
+
   return (
     <>
-      <div className={cn('pb-[200px] pt-4 md:pt-10', className)}>
-        {messages.length > 1 ? (
-          <>
-            <ChatList messages={messages} />
-            <ChatScrollAnchor trackVisibility={isLoading} />
-          </>
-        ) : (
-          <EmptyScreen setInput={setInput} />
-        )}
+      <div className={cn('px-4 pb-[200px] pt-4 md:pt-10', className)}>
+        {showLanding && <Landing disableAnimations={isChatPage} />}
+        <ChatList messages={messages} avatarUrl={avatarUrl} />
+        <ChatScrollAnchor trackVisibility={isLoading} />
       </div>
       <ChatPanel
         id={id}
-        isLoading={isLoading}
         stop={stop}
+        isLoading={isLoading}
         append={append}
         reload={reload}
         messages={messages}

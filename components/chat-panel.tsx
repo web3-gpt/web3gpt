@@ -1,8 +1,8 @@
 import { Button } from '@/components/ui/button'
 import { PromptForm } from '@/components/prompt-form'
 import { ButtonScrollToBottom } from '@/components/button-scroll-to-bottom'
-import { IconRefresh, IconStop } from '@/components/ui/icons'
-import { UseChatHelpers } from "ai/react/dist";
+import { IconRefresh, IconSpinner, IconStop } from '@/components/ui/icons'
+import { UseChatHelpers } from 'ai/react/dist'
 import { functionSchemas } from '@/lib/functions/schemas'
 
 export interface ChatPanelProps
@@ -40,14 +40,16 @@ export function ChatPanel({
               onClick={() => stop()}
               className="bg-background"
             >
-              <IconStop className="mr-2" />
+              <IconSpinner className="mr-2 animate-spin" />
               Stop generating
             </Button>
           ) : (
-            messages?.length > 0 && (
+            messages?.length > 1 && (
               <Button
                 variant="outline"
-                onClick={() => reload()}
+                onClick={() => reload({
+                  functions: functionSchemas
+                })}
                 className="bg-background"
               >
                 <IconRefresh className="mr-2" />
@@ -59,12 +61,14 @@ export function ChatPanel({
         <div className="space-y-4 border-t bg-background px-4 py-2 shadow-lg sm:rounded-t-xl sm:border md:py-4">
           <PromptForm
             onSubmit={async value => {
-              await append({
-                id,
-                content: value,
-                role: 'user'
-              },
-                { functions: functionSchemas })
+              await append(
+                {
+                  id,
+                  content: value,
+                  role: 'user'
+                },
+                { functions: functionSchemas }
+              )
             }}
             input={input}
             setInput={setInput}

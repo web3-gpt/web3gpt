@@ -5,9 +5,6 @@ import { auth } from '@/auth'
 import { getChat } from '@/app/actions'
 import { Chat } from '@/components/chat'
 
-export const runtime = 'edge'
-export const preferredRegion = 'home'
-
 export interface ChatPageProps {
   params: {
     id: string
@@ -19,11 +16,11 @@ export async function generateMetadata({
 }: ChatPageProps): Promise<Metadata> {
   const session = await auth()
 
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return {}
   }
 
-  const chat = await getChat(params.id, session.user.id)
+  const chat = await getChat(params.id, session?.user?.id)
   return {
     title: chat?.title.toString().slice(0, 50) ?? 'Chat'
   }
@@ -31,8 +28,9 @@ export async function generateMetadata({
 
 export default async function ChatPage({ params }: ChatPageProps) {
   const session = await auth()
+  const avatarUrl = session?.user?.image
 
-  if (!session?.user) {
+  if (!session?.user?.id) {
     redirect(`/sign-in?next=/chat/${params.id}`)
   }
 
@@ -46,5 +44,5 @@ export default async function ChatPage({ params }: ChatPageProps) {
     notFound()
   }
 
-  return <Chat id={chat.id} initialMessages={chat.messages} />
+  return <Chat showLanding id={chat.id} initialMessages={chat.messages} avatarUrl={avatarUrl} />
 }
