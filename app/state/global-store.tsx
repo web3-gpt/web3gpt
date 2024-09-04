@@ -1,11 +1,7 @@
-import { DEFAULT_GLOBAL_CONFIG } from '@/lib/constants'
-import {
-  LastDeploymentData,
-  DeployContractParams,
-  GlobalConfig,
-  VerifyContractParams
-} from '@/lib/functions/types'
-import { create } from 'zustand'
+import { create } from "zustand"
+
+import { DEFAULT_GLOBAL_CONFIG } from "@/lib/config"
+import type { DeployContractParams, GlobalConfig, LastDeploymentData, VerifyContractParams } from "@/lib/types"
 
 interface GlobalState {
   // configs
@@ -13,14 +9,19 @@ interface GlobalState {
   setGlobalConfig: (globalConfig: GlobalConfig) => void
 
   verifyContractConfig?: Partial<VerifyContractParams>
-  setVerifyContractConfig: (
-    verifyContractConfig: Partial<VerifyContractParams>
-  ) => void
+  setVerifyContractConfig: (verifyContractConfig: Partial<VerifyContractParams>) => void
 
   deployContractConfig?: Partial<DeployContractParams>
-  setDeployContractConfig: (
-    deployContractConfig: Partial<DeployContractParams>
-  ) => void
+  setDeployContractConfig: (deployContractConfig: Partial<DeployContractParams>) => void
+
+  tokenScriptViewerUrl?: string | null
+  setTokenScriptViewerUrl: (tokenScriptViewerUrl: string | null) => void
+
+  completedDeploymentReport: boolean
+  setCompletedDeploymentReport: (completed: boolean) => void
+
+  readyForTokenScript: boolean
+  setReadyForTokenScript: (ready: boolean) => void
 
   // loading states
   isLoading: boolean
@@ -37,19 +38,18 @@ interface GlobalState {
   setLastDeploymentData: (lastDeploymentData: LastDeploymentData) => void
 }
 
-export const useGlobalStore = create<GlobalState>(set => ({
+export const useGlobalStore = create<GlobalState>((set) => ({
   // configs
   globalConfig: DEFAULT_GLOBAL_CONFIG,
   setGlobalConfig: (globalConfig: GlobalConfig) => set({ globalConfig }),
   verifyContractConfig: undefined,
-  setVerifyContractConfig: (
-    verifyContractConfig: Partial<VerifyContractParams>
-  ) => set({ verifyContractConfig }),
+  setVerifyContractConfig: (verifyContractConfig: Partial<VerifyContractParams>) => set({ verifyContractConfig }),
 
   deployContractConfig: undefined,
-  setDeployContractConfig: (
-    deployContractConfig: Partial<DeployContractParams>
-  ) => set({ deployContractConfig }),
+  setDeployContractConfig: (deployContractConfig: Partial<DeployContractParams>) => set({ deployContractConfig }),
+
+  tokenScriptViewerUrl: undefined,
+  setTokenScriptViewerUrl: (tokenScriptViewerUrl: string | null) => set({ tokenScriptViewerUrl }),
 
   // loading states
   isLoading: false,
@@ -63,6 +63,11 @@ export const useGlobalStore = create<GlobalState>(set => ({
 
   // last deployment data
   lastDeploymentData: undefined,
-  setLastDeploymentData: (lastDeploymentData: LastDeploymentData) =>
-    set({ lastDeploymentData })
+  setLastDeploymentData: (lastDeploymentData: LastDeploymentData) => set({ lastDeploymentData }),
+
+  completedDeploymentReport: false,
+  setCompletedDeploymentReport: (completedDeploymentReport: boolean) => set({ completedDeploymentReport }),
+
+  readyForTokenScript: false,
+  setReadyForTokenScript: (readyForTokenScript: boolean) => set({ readyForTokenScript }),
 }))

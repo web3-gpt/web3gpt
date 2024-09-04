@@ -1,26 +1,19 @@
-import ipfsUpload from '@/lib/functions/deploy-contract/ipfs-upload'
+import { type NextRequest, NextResponse } from "next/server"
 
-export const runtime = 'edge'
+import { ipfsUploadDir } from "@/lib/actions/ipfs"
 
-export async function POST(req: Request) {
+export const runtime = "nodejs"
+
+export async function POST(req: NextRequest) {
   const json = await req.json()
   const { sources, abi, bytecode, standardJsonInput } = json
-
   try {
-    const deployResult = await ipfsUpload(
-      sources,
-      JSON.stringify(abi),
-      bytecode,
-      standardJsonInput
-    )
+    const deployResult = await ipfsUploadDir(sources, abi, bytecode, standardJsonInput)
 
-    return new Response(JSON.stringify(deployResult))
+    return NextResponse.json(deployResult)
   } catch (error) {
     const err = error as Error
     console.error(`Error in verifyContract: ${err.message}`)
-    return new Response(
-      JSON.stringify({ error: `Error in verifyContract: ${err.message}` }),
-      { status: 500 }
-    )
+    return NextResponse.json(`Error in verifyContract: ${err.message}`)
   }
 }

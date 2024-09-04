@@ -1,48 +1,30 @@
-import { type Metadata } from 'next'
-import { notFound, redirect } from 'next/navigation'
+import { notFound, redirect } from "next/navigation"
 
-import { auth } from '@/auth'
-import { getChat } from '@/app/actions'
-import { Chat } from '@/components/chat'
+import { auth } from "@/auth"
+import { Chat } from "@/components/chat/chat"
+import { getAiThreadMessages } from "@/lib/actions/ai"
+import { getAgent, getChat } from "@/lib/actions/db"
+import type { ChatPageProps } from "@/lib/types"
 
-export interface ChatPageProps {
-  params: {
-    id: string
-  }
-}
-
-export async function generateMetadata({
-  params
-}: ChatPageProps): Promise<Metadata> {
+export default async function ChatPage({ params, searchParams }: ChatPageProps) {
   const session = await auth()
-
-  if (!session?.user?.id) {
-    return {}
-  }
-
-  const chat = await getChat(params.id, session?.user?.id)
-  return {
-    title: chat?.title.toString().slice(0, 50) ?? 'Chat'
-  }
-}
-
-export default async function ChatPage({ params }: ChatPageProps) {
-  const session = await auth()
-  const avatarUrl = session?.user?.image
 
   if (!session?.user?.id) {
     redirect(`/sign-in?next=/chat/${params.id}`)
   }
 
-  const chat = await getChat(params.id, session.user.id)
+  const chat = await getChat(params.id)
 
   if (!chat) {
-    notFound()
+    redirect("/")
   }
 
   if (chat?.userId !== session?.user?.id) {
     notFound()
   }
 
-  return <Chat showLanding id={chat.id} initialMessages={chat.messages} avatarUrl={avatarUrl} />
+  const agentId = chat.agentId || (searchParams?.a as string)
+  const [agent, messages] = await Promise.all([agentId ? getAgent(agentId) : undefined, getAiThreadMessages(params.id)])
+
+  return <Chat agent={agent} initialThreadId={chat.id} initialMessages={messages} session={session} />
 }

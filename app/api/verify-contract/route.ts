@@ -1,35 +1,26 @@
-import { verifyContract } from '@/lib/functions/deploy-contract/verify-contract'
+import { type NextRequest, NextResponse } from "next/server"
 
-// TODO: try to enable edge runtime
-export const runtime = 'edge'
+import { verifyContract } from "@/lib/actions/solidity/verify-contract"
 
-export async function POST(req: Request) {
-  const json = await req.json()
-  const {
-    deployHash,
-    standardJsonInput,
-    encodedConstructorArgs,
-    fileName,
-    contractName,
-    viemChain
-  } = json
+export const runtime = "nodejs"
+
+export async function POST(req: NextRequest) {
+  const data = await req.json()
+  const { deployHash, contractAddress, standardJsonInput, encodedConstructorArgs, fileName, contractName, viemChain } =
+    data
 
   try {
     const deployResult = await verifyContract({
       deployHash,
+      contractAddress,
       standardJsonInput,
       encodedConstructorArgs,
       fileName,
       contractName,
       viemChain
     })
-    return new Response(JSON.stringify(deployResult))
+    return NextResponse.json(deployResult)
   } catch (error) {
-    const err = error as Error
-    console.error(`Error in verifyContract: ${err.message}`)
-    return new Response(
-      JSON.stringify({ error: `Error in verifyContract: ${err.message}` }),
-      { status: 500 }
-    )
+    return NextResponse.json(`Error in verifyContract: ${error}`)
   }
 }

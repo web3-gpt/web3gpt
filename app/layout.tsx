@@ -1,33 +1,44 @@
-import { Metadata, Viewport } from 'next'
+import type { Metadata, Viewport } from "next"
+import { JetBrains_Mono as FontMono, Inter as FontSans } from "next/font/google"
 
-import { Toaster } from 'react-hot-toast'
-import { Analytics } from '@vercel/analytics/react'
+import { Toaster } from "@/components/ui/sonner"
+import { Analytics } from "@vercel/analytics/react"
 
-import '@/app/globals.css'
-import { fontMono, fontSans } from '@/lib/fonts'
-import { cn } from '@/lib/utils'
-import { Header } from '@/components/header'
-import { Providers } from '@/components/providers/ui-providers'
-import { Web3Provider } from '@/components/providers/web3-provider'
+import "@/app/globals.css"
+import { Header } from "@/components/header/header"
+import { Providers } from "@/components/providers/ui-providers"
+import { Web3Provider } from "@/components/providers/web3-provider"
+import { APP_URL } from "@/lib/config"
+import { cn } from "@/lib/utils"
 
-export const runtime = 'edge'
+const fontSans = FontSans({
+  subsets: ["latin"],
+  variable: "--font-sans"
+})
+
+const fontMono = FontMono({
+  subsets: ["latin"],
+  variable: "--font-mono"
+})
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://w3gpt.ai'),
   title: {
-    default: 'Web3 GPT',
-    template: `Web3 GPT`
+    default: "Web3GPT",
+    template: "%s - Web3GPT"
   },
-  description: 'Write and deploy smart contracts with AI.',
+  description: "Write and deploy smart contracts with AI.",
   icons: {
-    icon: '/favicon.png'
-  }
+    icon: "/logo.svg",
+    shortcut: "/favicon-16x16.png",
+    apple: "/apple-touch-icon.png"
+  },
+  metadataBase: new URL(APP_URL)
 }
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'white' },
-    { media: '(prefers-color-scheme: dark)', color: 'black' }
+    { media: "(prefers-color-scheme: light)", color: "white" },
+    { media: "(prefers-color-scheme: dark)", color: "black" }
   ]
 }
 
@@ -35,24 +46,17 @@ interface RootLayoutProps {
   children: React.ReactNode
 }
 
-export default function RootLayout({ children }: RootLayoutProps) {
+export default async function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head />
-      <body
-        className={cn(
-          'font-sans antialiased',
-          fontSans.variable,
-          fontMono.variable
-        )}
-      >
-        <Toaster />
+      <body className={cn("font-sans antialiased", fontSans.variable, fontMono.variable)}>
         <Providers attribute="class" defaultTheme="system" enableSystem>
           <div className="flex min-h-screen flex-col">
             <main className="flex flex-1 flex-col bg-muted/50">
               <Web3Provider>
                 <Header />
                 {children}
+                <Toaster />
               </Web3Provider>
             </main>
           </div>

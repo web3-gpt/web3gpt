@@ -1,55 +1,44 @@
-import { Message } from 'ai'
-import { clsx, type ClassValue } from 'clsx'
-import { customAlphabet } from 'nanoid'
-import { twMerge } from 'tailwind-merge'
+import { type ClassValue, clsx } from "clsx"
+import { customAlphabet } from "nanoid"
+import { twMerge } from "tailwind-merge"
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
+import { IPFS_GATEWAY } from "@/lib/config"
+import type { Hash } from "viem"
 
-export const nanoid = customAlphabet(
-  '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
-  7
-) // 7-character random string
+export const cn = (...inputs: ClassValue[]): string => twMerge(clsx(inputs))
 
-export async function fetcher<JSON = any>(
-  input: RequestInfo,
-  init?: RequestInit
-): Promise<JSON> {
-  const res = await fetch(input, init)
+export const nanoid = customAlphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", 7)
 
-  if (!res.ok) {
-    const json = await res.json()
-    if (json.error) {
-      const error = new Error(json.error) as Error & {
-        status: number
-      }
-      error.status = res.status
-      throw error
-    } else {
-      throw new Error('An unexpected error occurred')
+export const formatDate = (input: string | number | Date): string => {
+  let date: Date
+  if (typeof input === "number") {
+    if (input.toString().length === 10) {
+      date = new Date(input * 1000)
     }
   }
+  if (typeof input === "string") {
+    date = new Date(input)
+  }
+  if (input instanceof Date) {
+    date = input
+  } else {
+    date = new Date()
+  }
 
-  return res.json()
-}
-
-export function formatDate(input: string | number | Date): string {
-  const date = new Date(Number(input))
-  return date.toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric"
   })
 }
 
-export function isValidEmail(email: string): boolean {
+export const isValidEmail = (email: string): boolean => {
   const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   return regex.test(email)
 }
 
-export function filterMessages(messages: Message[]): Message[] {
-  return messages.filter(
-    message => message.role !== 'system' && message.role !== 'function'
-  )
+export const getGatewayUrl = (cid: string): string => `${IPFS_GATEWAY}/ipfs/${cid}`
+
+export function ensureHashPrefix(bytecode: string | Hash): Hash {
+  return `0x${bytecode.replace(/^0x/, "")}`
 }

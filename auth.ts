@@ -1,13 +1,14 @@
-import NextAuth, { DefaultSession } from 'next-auth'
-import GitHub from 'next-auth/providers/github'
-import { storeUser } from '@/app/actions'
+import NextAuth, { type DefaultSession } from "next-auth"
+import GitHub from "next-auth/providers/github"
+
+import { storeUser } from "@/lib/actions/db"
 
 // override type definitions for session
-declare module 'next-auth' {
+declare module "next-auth" {
   interface Session {
     user: {
-      id?: string | null | undefined
-    } & DefaultSession['user']
+      id?: string
+    } & DefaultSession["user"]
   }
 }
 
@@ -19,11 +20,12 @@ export const {
   callbacks: {
     async jwt({ token, profile }) {
       if (profile?.id) {
-        token.id = String(profile.id)
+        const profileId = String(profile.id)
+        token.id = profileId
         const user = {
           ...token,
           ...profile,
-          id: String(profile.id)
+          id: profileId
         }
         await storeUser(user)
       }
@@ -36,13 +38,8 @@ export const {
       }
       return session
     }
-
-    // uncomment to require authentication
-    // authorized({ auth }) {
-    //   return !!auth?.user
-    // }
   },
   pages: {
-    signIn: '/sign-in'
+    signIn: "/sign-in"
   }
 })
