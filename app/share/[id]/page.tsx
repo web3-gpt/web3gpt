@@ -5,38 +5,42 @@ import { auth } from "@/auth"
 import { AgentCard } from "@/components/agent-card"
 import { ChatList } from "@/components/chat/chat-list"
 import { Landing } from "@/components/landing"
-import { getAiThreadMessages } from "@/lib/actions/ai"
-import { getAgent, getPublishedChat } from "@/lib/actions/db"
 import { APP_URL } from "@/lib/config"
-import type { ChatPageProps } from "@/lib/types"
+import { getAgent, getPublishedChat } from "@/lib/data/kv"
+import { getAiThreadMessages } from "@/lib/data/openai"
+import type { NextPageProps } from "@/lib/types"
 import { formatDate } from "@/lib/utils"
 
-export async function generateMetadata({ params }: ChatPageProps) {
+export async function generateMetadata({ params }: NextPageProps) {
   const metadata: Metadata = {
     title: "Shared Chat",
-    description: "Write and deploy smart contracts with AI",
+    description: "Deploy smart contracts, create AI Agents, do more onchain with AI.",
     openGraph: {
       images: [`${APP_URL}/api/og?id=${params.id}&h=630`],
-      url: `${APP_URL}/share/${params.id}`
+      url: `${APP_URL}/share/${params.id}`,
     },
     twitter: {
       card: "summary_large_image",
-      site: "@web3gpt_app",
-      images: [`${APP_URL}/api/og?id=${params.id}&h=675`]
-    }
+      site: "@w3gptai",
+      images: [`${APP_URL}/api/og?id=${params.id}&h=675`],
+    },
   }
   return metadata
 }
 
-export default async function SharePage({ params, searchParams }: ChatPageProps) {
+export default async function SharePage({ params, searchParams }: NextPageProps) {
   const [session, chat] = await Promise.all([auth(), getPublishedChat(params.id)])
-  const userId = session?.user?.id
+  const userId = session?.user.id
 
   if (!chat || !chat.published) {
     notFound()
   }
-  const agentId = chat.agentId || (searchParams?.a as string)
-  const [agent, messages] = await Promise.all([agentId ? getAgent(agentId) : undefined, getAiThreadMessages(chat.id)])
+  const { title, avatarUrl, agentId = searchParams?.a, createdAt = new Date(), id: chatId = params.id } = chat
+
+  const [agent, messages] = await Promise.all([
+    typeof agentId === "string" ? getAgent(agentId) : undefined,
+    getAiThreadMessages(chatId),
+  ])
 
   return (
     <>
@@ -44,15 +48,15 @@ export default async function SharePage({ params, searchParams }: ChatPageProps)
         <div className="border-b bg-background px-4 py-6 md:px-6 md:py-8">
           <div className="mx-auto max-w-2xl md:px-6">
             <div className="space-y-1 md:-mx-8">
-              <h1 className="text-2xl font-bold">{chat.title}</h1>
+              <h1 className="text-2xl font-bold">{title}</h1>
               <div className="text-sm text-muted-foreground">
-                {formatDate(chat.createdAt)} · {messages.length} messages
+                {formatDate(createdAt)} · {messages.length} messages
               </div>
             </div>
           </div>
         </div>
         {agent ? <AgentCard agent={agent} /> : <Landing userId={userId} />}
-        <ChatList messages={messages} avatarUrl={chat.avatarUrl} />
+        <ChatList messages={messages} avatarUrl={avatarUrl} />
       </div>
     </>
   )

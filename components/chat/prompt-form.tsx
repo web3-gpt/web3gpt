@@ -1,26 +1,26 @@
-"use client"
-
 import { useRouter } from "next/navigation"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useTransition } from "react"
 
 import type { UseAssistantHelpers } from "@ai-sdk/react"
 import Textarea from "react-textarea-autosize"
 
 import { Button, buttonVariants } from "@/components/ui/button"
-import { IconArrowElbow, IconHome } from "@/components/ui/icons"
+import { IconArrowElbow, IconHome, IconSpinner } from "@/components/ui/icons"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useEnterSubmit } from "@/lib/hooks/use-enter-submit"
 import { useScrollToBottom } from "@/lib/hooks/use-scroll-to-bottom"
 import { cn } from "@/lib/utils"
 
-type PromptProps = Pick<UseAssistantHelpers, "append" | "status">
+type PromptProps = Pick<UseAssistantHelpers, "append" | "status" | "setThreadId">
 
-export const PromptForm = ({ append, status }: PromptProps) => {
+export const PromptForm = ({ append, status, setThreadId }: PromptProps) => {
   const [input, setInput] = useState<string>("")
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const router = useRouter()
   const { formRef, onKeyDown } = useEnterSubmit()
   const { scrollToBottom } = useScrollToBottom()
+  const [isPendingTransition, startTransition] = useTransition()
+  const router = useRouter()
+  const isInProgress = status === "in_progress"
 
   useEffect(() => {
     if (inputRef.current) {
@@ -34,7 +34,7 @@ export const PromptForm = ({ append, status }: PromptProps) => {
       onSubmit={async (e) => {
         e.preventDefault()
 
-        if (status === "in_progress") {
+        if (isInProgress) {
           return
         }
 
@@ -49,19 +49,23 @@ export const PromptForm = ({ append, status }: PromptProps) => {
       }}
     >
       <div className="relative flex w-full grow flex-col overflow-hidden px-8 sm:rounded-md sm:border sm:px-12">
-        <Tooltip delayDuration={200}>
+        <Tooltip delayDuration={500}>
           <TooltipTrigger asChild>
             <Button
-              type="button"
+              type="submit"
+              disabled={isPendingTransition || isInProgress}
               onClick={() => {
-                router.push("/")
+                startTransition(() => {
+                  setThreadId(undefined)
+                  router.push("/")
+                })
               }}
               className={cn(
                 buttonVariants({ size: "sm", variant: "secondary" }),
-                "absolute left-0 top-4 size-8 rounded-full border p-0 sm:left-4"
+                "absolute left-0 top-4 size-8 rounded-full border p-0 sm:left-4",
               )}
             >
-              <IconHome />
+              {isPendingTransition ? <IconSpinner /> : <IconHome />}
               <span className="sr-only">New Chat</span>
             </Button>
           </TooltipTrigger>
@@ -87,7 +91,7 @@ export const PromptForm = ({ append, status }: PromptProps) => {
         <div className="absolute right-0 top-4 sm:right-4">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button type="submit" size="icon" disabled={input === "" || status === "in_progress"}>
+              <Button type="submit" size="icon" disabled={input === "" || isInProgress}>
                 <IconArrowElbow className="fill-white" />
                 <span className="sr-only">Send message</span>
               </Button>

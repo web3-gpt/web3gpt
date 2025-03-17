@@ -1,20 +1,21 @@
 import NextAuth, { type DefaultSession } from "next-auth"
 import GitHub from "next-auth/providers/github"
 
-import { storeUser } from "@/lib/actions/db"
+import { storeUser } from "@/lib/data/kv"
 
-// override type definitions for session
 declare module "next-auth" {
-  interface Session {
+  interface Session extends DefaultSession {
     user: {
-      id?: string
+      id: string
     } & DefaultSession["user"]
   }
 }
 
 export const {
   handlers: { GET, POST },
-  auth
+  auth,
+  signIn,
+  signOut,
 } = NextAuth({
   providers: [GitHub],
   callbacks: {
@@ -25,21 +26,27 @@ export const {
         const user = {
           ...token,
           ...profile,
-          id: profileId
+          id: profileId,
         }
         await storeUser(user)
       }
       return token
     },
 
-    async session({ session, token }) {
+    session({ session, token }) {
       if (token?.id) {
         session.user.id = String(token.id)
       }
-      return session
-    }
+      return {
+        ...session,
+        user: {
+          ...session.user,
+          id: String(token.id),
+        },
+      }
+    },
   },
   pages: {
-    signIn: "/sign-in"
-  }
+    signIn: "/sign-in",
+  },
 })

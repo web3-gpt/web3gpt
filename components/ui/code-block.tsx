@@ -2,6 +2,7 @@
 
 import { memo, useCallback, useMemo } from "react"
 
+import { generateId } from "ai"
 import { useTheme } from "next-themes"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { coldarkCold, coldarkDark } from "react-syntax-highlighter/dist/cjs/styles/prism"
@@ -12,9 +13,9 @@ import { Button } from "@/components/ui/button"
 import { IconCheck, IconCopy, IconDownload } from "@/components/ui/icons"
 import { useCopyToClipboard } from "@/lib/hooks/use-copy-to-clipboard"
 import { useIsClient } from "@/lib/hooks/use-is-client"
-import { cn, nanoid } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 
-export const PROGRAMMING_LANGUAGES: Record<string, string> = {
+const PROGRAMMING_LANGUAGES: Record<string, string> = {
   javascript: ".js",
   python: ".py",
   java: ".java",
@@ -41,7 +42,7 @@ export const PROGRAMMING_LANGUAGES: Record<string, string> = {
   solidity: ".sol",
   clarity: ".clar",
   tokenscript: ".xml",
-  tokenscripttsml: ".tsml"
+  tokenscripttsml: ".tsml",
 }
 
 type CodeBlockProps = {
@@ -50,9 +51,10 @@ type CodeBlockProps = {
 }
 
 export const CodeBlock = memo(({ language, value }: CodeBlockProps) => {
-  const { isCopied, copyToClipboard } = useCopyToClipboard({ timeout: 2000 })
   const isClient = useIsClient()
   const { resolvedTheme } = useTheme()
+  const { isCopied, copyToClipboard } = useCopyToClipboard({ timeout: 2000 })
+
   const isDarkMode = !isClient ? true : resolvedTheme === "dark"
 
   const memoizedHighlighter = useMemo(() => {
@@ -65,13 +67,13 @@ export const CodeBlock = memo(({ language, value }: CodeBlockProps) => {
           margin: 0,
           width: "100%",
           background: "transparent",
-          padding: "1.5rem 1rem"
+          padding: "1.5rem 1rem",
         }}
         codeTagProps={{
           style: {
             fontSize: "0.9rem",
-            fontFamily: "var(--font-mono)"
-          }
+            fontFamily: "var(--font-mono)",
+          },
         }}
       >
         {value}
@@ -84,13 +86,10 @@ export const CodeBlock = memo(({ language, value }: CodeBlockProps) => {
       return
     }
     const fileExtension = PROGRAMMING_LANGUAGES[language] || ".file"
-    const suggestedFileName = `web3gpt-${nanoid(6)}${fileExtension}`
-    const fileName = window.prompt("Enter file name" || "", suggestedFileName)
+    const suggestedFileName = `web3gpt-${generateId(6)}${fileExtension}`
+    const fileName = window.prompt("Enter file name", suggestedFileName)
 
-    if (!fileName) {
-      // User pressed cancel on prompt.
-      return
-    }
+    if (!fileName) return
 
     const blob = new Blob([value], { type: "text/plain" })
     const url = URL.createObjectURL(blob)
@@ -104,7 +103,7 @@ export const CodeBlock = memo(({ language, value }: CodeBlockProps) => {
     URL.revokeObjectURL(url)
   }, [value, language])
 
-  const renderDeployButton = () => {
+  const renderDeployButton = useCallback(() => {
     if (language === "solidity") {
       return <DeployContractButton getSourceCode={() => value} />
     }
@@ -112,14 +111,15 @@ export const CodeBlock = memo(({ language, value }: CodeBlockProps) => {
       return <DeployTokenScriptButton getSourceCode={() => value} />
     }
     return null
-  }
+  }, [language, value])
+
   return (
     <div className="relative w-full font-sans dark:bg-zinc-950 bg-gray-200">
       <div
-        className={cn("flex w-full items-center justify-between px-6 py-3 pr-4", {
-          "bg-zinc-800 text-zinc-100": isDarkMode,
-          "bg-gray-300 text-gray-950": !isDarkMode
-        })}
+        className={cn(
+          "flex w-full items-center justify-between px-6 py-3 pr-4",
+          isDarkMode ? "bg-zinc-800 text-zinc-100" : "bg-gray-300 text-gray-950",
+        )}
       >
         <span className="text-xs lowercase">{language}</span>
         <div className="flex items-center space-x-1">
@@ -148,5 +148,3 @@ export const CodeBlock = memo(({ language, value }: CodeBlockProps) => {
     </div>
   )
 })
-
-CodeBlock.displayName = "CodeBlock"

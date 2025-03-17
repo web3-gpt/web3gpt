@@ -1,18 +1,17 @@
-import type { NextRequest } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 
 import { AssistantResponse } from "ai"
 import type { BadRequestError } from "openai/error"
 
 import { auth } from "@/auth"
-import { createAgent } from "@/lib/actions/ai"
-import { storeChat } from "@/lib/actions/db"
-import { deployContract } from "@/lib/actions/solidity/deploy-contract"
-import { deployTokenScript } from "@/lib/actions/solidity/deploy-tokenscript"
 import { resolveAddress, resolveDomain } from "@/lib/actions/unstoppable-domains"
-import { APP_URL } from "@/lib/config"
-import { openai } from "@/lib/openai"
+import { APP_URL, DEFAULT_COMPILER_VERSION, supportedChains } from "@/lib/config"
+import { storeChat } from "@/lib/data/kv"
+import { createAgent, openai } from "@/lib/data/openai"
+import { deployContract, deployTokenScript } from "@/lib/solidity/deploy"
 import { ToolName } from "@/lib/tools"
 import type { DbChat } from "@/lib/types"
+import type { FunctionToolCall } from "openai/resources/beta/threads/runs/index"
 
 export const runtime = "nodejs"
 
@@ -23,7 +22,7 @@ export async function POST(request: NextRequest) {
   const {
     message,
     threadId: threadIdFromClient,
-    assistantId
+    assistantId,
   } = (await request.json()) as {
     message: string
     threadId: string
@@ -31,7 +30,8 @@ export async function POST(request: NextRequest) {
   }
 
   if (!assistantId) {
-    throw new Error("Assistant ID is required")
+    console.error("Assistant ID is required")
+    return NextResponse.json({ error: "Assistant ID is required" }, { status: 400 })
   }
 
   const threadId = threadIdFromClient || (await openai.beta.threads.create()).id
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
   const { created_at: createdAt, id: messageId } = await openai.beta.threads.messages
     .create(threadId, {
       role: "user",
-      content: message
+      content: message,
     })
     .catch(async (reqError: BadRequestError & { error: Error }) => {
       const { error } = reqError
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
         await openai.beta.threads.runs.cancel(threadId, runId)
         return await openai.beta.threads.messages.create(threadId, {
           role: "user",
-          content: message
+          content: message,
         })
       }
       throw error
@@ -66,25 +66,35 @@ export async function POST(request: NextRequest) {
       createdAt: createdAt,
       avatarUrl: avatarUrl,
       published: false,
-      messages: [{ id: messageId, role: "user", content: message }]
+      messages: [{ id: messageId, role: "user", content: message }],
     }
 
-    await storeChat(newChat)
+    await storeChat({ data: newChat, userId })
   }
 
   return AssistantResponse({ threadId, messageId }, async ({ forwardStream }) => {
     const runStream = openai.beta.threads.runs.stream(threadId, {
       assistant_id: assistantId,
       stream: true,
-      model: "gpt-4o-mini"
+      model: "gpt-4o",
+      additional_instructions: JSON.stringify({
+        latestSettings: {
+          compilerVersion: DEFAULT_COMPILER_VERSION,
+          availableChains: supportedChains.map((chain) => {
+            return {
+              name: chain.name,
+              id: chain.id,
+            }
+          }),
+        },
+      }),
     })
 
-    // forward run status would stream message deltas
     let runResult = await forwardStream(runStream)
 
     while (runResult?.status === "requires_action" && runResult.required_action?.type === "submit_tool_outputs") {
       const tool_outputs = await Promise.all(
-        runResult.required_action.submit_tool_outputs.tool_calls.map(async (toolCall) => {
+        runResult.required_action.submit_tool_outputs.tool_calls.map(async (toolCall: FunctionToolCall) => {
           const parameters = JSON.parse(toolCall.function.arguments)
           try {
             switch (toolCall.function.name) {
@@ -94,19 +104,19 @@ export async function POST(request: NextRequest) {
                   chainId,
                   contractName,
                   sourceCode,
-                  constructorArgs
+                  constructorArgs,
                 })
 
                 return {
                   output: `Contract Deployed: ${deployResult.explorerUrl} IPFS Repository: ${deployResult.ipfsUrl}`,
-                  tool_call_id: toolCall.id
+                  tool_call_id: toolCall.id,
                 }
               }
               case ToolName.CreateAgent: {
                 if (!userId) {
                   return {
                     output: JSON.stringify({ error: "Unauthorized, user not signed in." }),
-                    tool_call_id: toolCall.id
+                    tool_call_id: toolCall.id,
                   }
                 }
                 const { name, description, instructions, creator, imageUrl } = parameters
@@ -116,13 +126,13 @@ export async function POST(request: NextRequest) {
                   description,
                   instructions,
                   creator: creator,
-                  imageUrl: imageUrl || "/assets/agent-factory.png"
+                  imageUrl: imageUrl || "/assets/agent-factory.png",
                 })
 
                 if (!assistantId) {
                   return {
                     output: JSON.stringify({ error: "Error creating agent" }),
-                    tool_call_id: toolCall.id
+                    tool_call_id: toolCall.id,
                   }
                 }
 
@@ -130,7 +140,7 @@ export async function POST(request: NextRequest) {
 
                 return {
                   output: `Agent created: successfully, agent chat url: ${agentChatUrl}`,
-                  tool_call_id: toolCall.id
+                  tool_call_id: toolCall.id,
                 }
               }
               case ToolName.ResolveDomain: {
@@ -138,7 +148,7 @@ export async function POST(request: NextRequest) {
                 const address = await resolveDomain(domain, ticker)
                 return {
                   output: `Resolved address for domain ${domain}: ${address}`,
-                  tool_call_id: toolCall.id
+                  tool_call_id: toolCall.id,
                 }
               }
               case ToolName.ResolveAddress: {
@@ -146,7 +156,7 @@ export async function POST(request: NextRequest) {
                 const domain = await resolveAddress(address)
                 return {
                   output: `Resolved domain for address ${address}: ${domain}`,
-                  tool_call_id: toolCall.id
+                  tool_call_id: toolCall.id,
                 }
               }
               case ToolName.DeployTokenScript: {
@@ -159,7 +169,7 @@ export async function POST(request: NextRequest) {
                   tokenName,
                   tokenScriptSource,
                   ensDomain,
-                  includeBurnFunction: includeBurnFunction || false
+                  includeBurnFunction: includeBurnFunction || false,
                 })
 
                 let output = "TokenScript deployed:\n"
@@ -177,7 +187,7 @@ export async function POST(request: NextRequest) {
 
                 return {
                   output,
-                  tool_call_id: toolCall.id
+                  tool_call_id: toolCall.id,
                 }
               }
 
@@ -185,18 +195,26 @@ export async function POST(request: NextRequest) {
                 throw new Error(`Unknown tool call function: ${toolCall.function.name}`)
             }
           } catch (error) {
-            const err = error as Error
-            console.error(`Error in tool call: ${err.message}`)
+            const stringifiedError = `Error in tool call: ${JSON.stringify(
+              error instanceof Error
+                ? {
+                    message: error.message,
+                    stack: error.stack,
+                  }
+                : { error },
+            )}`
+
+            console.error(stringifiedError)
             return {
-              output: JSON.stringify({ error: `Error in tool call: ${err.message}` }),
-              tool_call_id: toolCall.id
+              output: stringifiedError,
+              tool_call_id: toolCall.id,
             }
           }
-        })
+        }),
       )
 
       runResult = await forwardStream(
-        openai.beta.threads.runs.submitToolOutputsStream(threadId, runResult.id, { tool_outputs, stream: true })
+        openai.beta.threads.runs.submitToolOutputsStream(threadId, runResult.id, { tool_outputs, stream: true }),
       )
     }
   })

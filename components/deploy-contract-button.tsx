@@ -1,5 +1,3 @@
-"use client"
-
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
@@ -15,7 +13,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
+  DialogTrigger,
 } from "@/components/ui/dialog"
 import { IconExternalLink, IconSpinner } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
@@ -44,11 +42,11 @@ export const DeployContractButton = ({ getSourceCode }: DeployContractButtonProp
   const { isDeploying, setIsDeploying } = useGlobalStore()
   const supportedChains = useChains()
   const { chain } = useAccount()
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   const isSupportedChain = useMemo(
     () => !!chain && supportedChains.find((c) => c.id === chain.id),
-    [chain, supportedChains]
+    [chain, supportedChains],
   )
 
   const generateConstructorArgs = useCallback(() => {
@@ -101,7 +99,7 @@ export const DeployContractButton = ({ getSourceCode }: DeployContractButtonProp
       const deploymentData = await deployWithWallet({
         contractName,
         sourceCode,
-        constructorArgs: constructorArgValues
+        constructorArgs: constructorArgValues,
       })
       if (!deploymentData) {
         setIsErrorDeploying(true)
@@ -131,7 +129,7 @@ export const DeployContractButton = ({ getSourceCode }: DeployContractButtonProp
       <Dialog
         open={isDialogOpen}
         onOpenChange={(isOpen) => {
-          setIsDialogOpen(isOpen);
+          setIsDialogOpen(isOpen)
           if (!isOpen && !isDeploying) {
             setIsErrorDeploying(false)
           }
@@ -141,7 +139,7 @@ export const DeployContractButton = ({ getSourceCode }: DeployContractButtonProp
           <Button
             onClick={() => {
               setSourceCode(getSourceCode())
-              setIsDialogOpen(true);
+              setIsDialogOpen(true)
             }}
             className="mr-2 text-primary-foreground"
             variant="default"

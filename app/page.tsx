@@ -1,12 +1,15 @@
 import { auth } from "@/auth"
 import { Chat } from "@/components/chat/chat"
-import { getAgent } from "@/lib/actions/db"
-import type { ChatPageProps } from "@/lib/types"
+import { DEFAULT_AGENT } from "@/lib/constants"
+import { getAgent } from "@/lib/data/kv"
+import type { NextPageProps } from "@/lib/types"
 
-export default async function ChatPage({ searchParams }: ChatPageProps) {
-  const agentId = searchParams?.a as string
-  const agent = (agentId && (await getAgent(agentId))) || undefined
-  const session = (await auth()) || undefined
+export default async function ChatPage({ searchParams }: NextPageProps) {
+  const agentIdParam = typeof searchParams?.a === "string" ? searchParams.a : null
 
-  return <Chat agent={agent} session={session} />
+  const agent = (agentIdParam && (await getAgent(agentIdParam))) || DEFAULT_AGENT
+  const session = await auth()
+  const { id, image } = session?.user || {}
+
+  return <Chat agent={agent} userId={id} avatarUrl={image} />
 }

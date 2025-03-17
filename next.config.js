@@ -1,13 +1,8 @@
 /** @type {import('next').NextConfig} */
+
 module.exports = {
-  webpack: (config, context) => {
-    if (config.plugins) {
-      config.plugins.push(
-        new context.webpack.IgnorePlugin({
-          resourceRegExp: /^(lokijs|pino-pretty|encoding)$/
-        })
-      )
-    }
+  webpack: (config) => {
+    config.externals.push("pino-pretty", "lokijs", "encoding")
     return config
   },
   images: {
@@ -40,24 +35,9 @@ module.exports = {
             value: "X-Requested-With, content-type, Authorization"
           }
         ]
-      },
-      {
-        source: "/api/external-deploy",
-        headers: [
-          {
-            key: "Access-Control-Allow-Origin",
-            value: "*"
-          },
-          {
-            key: "Access-Control-Allow-Methods",
-            value: "POST, PUT, OPTIONS"
-          },
-          {
-            key: "Access-Control-Allow-Headers",
-            value: "Content-Type, Authorization, web3gpt-api-key"
-          }
-        ]
       }
     ]
-  }
+  },
 }
+
+

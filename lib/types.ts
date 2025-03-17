@@ -1,7 +1,7 @@
 import type { Message } from "ai"
 import type { Abi, Chain, Hash } from "viem"
 
-export type ChatPageProps = {
+export type NextPageProps = {
   params: { id: string }
   searchParams?: { [key: string]: string | string[] | undefined }
 }
@@ -26,13 +26,6 @@ export type DbChatListItem = {
   published: boolean
 }
 
-export type ServerActionResult<Result> = Promise<
-  | Result
-  | {
-      error: string
-    }
->
-
 export type Agent = {
   id: string
   userId: string
@@ -49,12 +42,6 @@ export type CreateAgentParams = {
   instructions: string
   creator: string
   imageUrl: string
-}
-
-export type GlobalConfig = {
-  viemChain: Chain
-  compilerVersion: string
-  useWallet: boolean
 }
 
 export type DeployContractParams = {
@@ -81,13 +68,12 @@ export type VerifyContractParams = {
   encodedConstructorArgs: string
   fileName: string
   contractName: string
-  viemChain: Chain
+  viemChain: Omit<Chain, "contracts" | "ensRegistry" | "ensUniversalResolver" | "multicall3" | "formatters">
 }
 
 export type LastDeploymentData = DeployContractResult & {
   walletAddress: Hash
   chainId: number
-  verificationStatus: string
   transactionHash: Hash
 }
 
@@ -108,4 +94,11 @@ export type DeployTokenScriptResult = {
   tokenName: string
   ensDomain: string
   includeBurnFunction: boolean
+}
+
+export type ChainDetails = {
+  rpcUrl: string
+  explorerUrl: string
+  explorerApiUrl: string
+  explorerApiKey: string
 }

@@ -1,4 +1,4 @@
-import { cache } from "react"
+import Link from "next/link"
 
 import { auth } from "@/auth"
 import { ConnectButton } from "@/components/connect-button"
@@ -11,21 +11,19 @@ import { SidebarAgents } from "@/components/sidebar/sidebar-agents"
 import { SidebarFooter } from "@/components/sidebar/sidebar-footer"
 import { SidebarList } from "@/components/sidebar/sidebar-list"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { IconSeparator } from "@/components/ui/icons"
 import { SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { clearChats, getChatList } from "@/lib/actions/db"
+import { getChatList } from "@/lib/data/kv"
 import { cn } from "@/lib/utils"
-
-const loadChatList = cache(async () => {
-  "use cache"
-  return await getChatList()
-})
+import { MetisTeaser } from "@/components/metis-teaser"
 
 export const Header = async () => {
+  const chatList = await getChatList()
   const session = await auth()
+
   const user = session?.user
-  const chatList = await loadChatList()
 
   return (
     <header className="sticky top-0 z-50 flex h-16 w-full shrink-0 items-center justify-between border-b bg-background px-4">
@@ -45,27 +43,33 @@ export const Header = async () => {
             <>
               <SidebarList chatList={chatList} />
               <SidebarFooter className="justify-end">
-                <ClearHistory clearChats={clearChats} />
+                <ClearHistory />
               </SidebarFooter>
             </>
           ) : null}
         </Sidebar>
-        <div className="flex items-center">
+        <div className="flex items-center ">
           <IconSeparator className="size-6 text-muted-foreground/50" />
           {user ? (
             <UserMenu user={user} />
           ) : (
             <LoginButton variant="link" showGithubIcon={true} text="Login" className="-ml-2" />
           )}
+          <Button variant="link" asChild>
+            <Link href="https://docs.w3gpt.ai" target="_blank">
+              Docs
+            </Link>
+          </Button>
+          <MetisTeaser />
         </div>
       </div>
       <div className="invisible absolute inset-0 -z-10 flex items-center justify-center md:visible">
         <div className="flex items-center justify-center space-x-4 translate-x-1/2">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Badge className={cn("text-xs text-slate-800 bg-yellow-300")}>gpt-4o-mini</Badge>
+              <Badge className={cn("text-xs text-slate-800 bg-yellow-300")}>gpt-4o</Badge>
             </TooltipTrigger>
-            <TooltipContent>Using the latest GPT-4o mini</TooltipContent>
+            <TooltipContent>Using GPT-4o</TooltipContent>
           </Tooltip>
         </div>
       </div>
